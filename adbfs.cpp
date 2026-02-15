@@ -1064,21 +1064,20 @@ static int adb_readlink(const char *path, char *buf, size_t size)
     if(pos == string::npos)
        return -EINVAL;
     pos+=4;
-    size_t my_size = res.size();
-    buf[0] = 0;
-    if (res[pos] == '/') {
-	    while(res[pos] == '/')
-		    ++pos;
-	    my_size += 3 * num_slashes - pos;
-	    if(my_size >= size)
-		    return -ENOSYS;
-	    for (;num_slashes;num_slashes--) {
-		    strncat(buf,"../",size);
-	    }
+    string target;
+    if (pos < res.size() && res[pos] == '/') {
+        while (pos < res.size() && res[pos] == '/')
+            ++pos;
+        for (; num_slashes > 0; num_slashes--) {
+            target.append("../");
+        }
     }
-    if(my_size >= size)
-	    return -ENOSYS;
-    strncat(buf, res.c_str() + pos,size);
+    target.append(res, pos, string::npos);
+
+    if (target.size() >= size) {
+        return -ENOSYS;
+    }
+    strcpy(buf, target.c_str());
     return 0;
 }
 
