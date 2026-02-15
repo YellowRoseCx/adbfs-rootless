@@ -424,7 +424,7 @@ static int adb_getattr(const char *path, struct stat *stbuf)
     vector<string> output_chunk;
     if (fileData.find(path_string) ==  fileData.end()
 	|| fileData[path_string].timestamp + 30 < time(NULL)) {
-        string command = "ls -l -a -d '";
+        string command = "stat -c '%A %h %U %G %s %Y' '";
         command.append(path_string);
         command.append("'");
         output = adb_shell(command, true);
@@ -530,25 +530,25 @@ static int adb_getattr(const char *path, struct stat *stbuf)
     //for (int k = 0; k < output_chunk.size(); ++k) cout << output_chunk[k] << " ";
     //cout << endl;
 
-    vector<string> ymd = make_array(output_chunk[iDate], "-");
-    vector<string> hm = make_array(output_chunk[iDate + 1], ":");
+    // vector<string> ymd = make_array(output_chunk[iDate], "-");
+    // vector<string> hm = make_array(output_chunk[iDate + 1], ":");
 
 
-    //for (int k = 0; k < ymd.size(); ++k) cout << ymd[k] << " ";
-    //cout << endl;
-    //for (int k = 0; k <  hm.size(); ++k) cout <<  hm[k] << " ";
-    //cout << endl;
-    struct tm ftime;
-    ftime.tm_year = atoi(ymd[0].c_str()) - 1900;
-    ftime.tm_mon  = atoi(ymd[1].c_str()) - 1;
-    ftime.tm_mday = atoi(ymd[2].c_str());
-    ftime.tm_hour = atoi(hm[0].c_str());
-    ftime.tm_min  = atoi(hm[1].c_str());
-    ftime.tm_sec  = 0;
-    ftime.tm_isdst = -1;
-    time_t now = mktime(&ftime);
+    // //for (int k = 0; k < ymd.size(); ++k) cout << ymd[k] << " ";
+    // //cout << endl;
+    // //for (int k = 0; k <  hm.size(); ++k) cout <<  hm[k] << " ";
+    // //cout << endl;
+    // struct tm ftime;
+    // ftime.tm_year = atoi(ymd[0].c_str()) - 1900;
+    // ftime.tm_mon  = atoi(ymd[1].c_str()) - 1;
+    // ftime.tm_mday = atoi(ymd[2].c_str());
+    // ftime.tm_hour = atoi(hm[0].c_str());
+    // ftime.tm_min  = atoi(hm[1].c_str());
+    // ftime.tm_sec  = 0;
+    // ftime.tm_isdst = -1;
+    // time_t now = mktime(&ftime);
     //cout << "after mktime" << endl;
-
+    time_t now = (time_t) atol(output_chunk[iDate].c_str());
     //long now = time(0);
 
     stbuf->st_atime = now;   /* time of last access */
@@ -631,8 +631,8 @@ static int adb_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                     + (path_string == "/" ? "" : "/") + fname_n;
 
                 cout << "caching " << path_string_c << " = " << output.front() <<  endl;
-                fileData[path_string_c].statOutput = output.front();
-                fileData[path_string_c].timestamp = time(NULL);
+                // fileData[path_string_c].statOutput = output.front();
+                // fileData[path_string_c].timestamp = time(NULL);
                 cout << "cached " << endl;
             }
         }
@@ -663,7 +663,7 @@ static int adb_open(const char *path, struct fuse_file_info *fi)
     cout << "-- adb_open --" << path_string << " " << local_path_string << "\n";
     if (!fileTruncated[path_string]){
         queue<string> output;
-        string command = "ls -l -a -d '";
+        string command = "stat -c '%A %h %U %G %s %Y' '";
         command.append(path_string);
         command.append("'");
         cout << command<<"\n";
@@ -810,7 +810,7 @@ static int adb_truncate(const char *path, off_t size) {
 
     queue<string> output;
     cout << "adb_truncate" << endl;
-    string command = "ls -l -a -d '";
+    string command = "stat -c '%A %h %U %G %s %Y' '";
     command.append(path_string);
     command.append("'");
     cout << command << "\n";
@@ -984,9 +984,9 @@ static int adb_readlink(const char *path, char *buf, size_t size)
         {
             fileData[path_string].statOutput.erase();
         } else {
-            fileData[path_string].statOutput = output.front();
+            // fileData[path_string].statOutput = output.front();
         }
-        fileData[path_string].timestamp = time(NULL);
+        // fileData[path_string].timestamp = time(NULL);
     } else{
         cout << "from cache " << path << "\n";
     }
