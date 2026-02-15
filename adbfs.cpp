@@ -429,7 +429,7 @@ static int adb_getattr(const char *path, struct stat *stbuf)
     vector<string> output_chunk;
     if (fileData.find(path_string) ==  fileData.end()
 	|| fileData[path_string].timestamp + 30 < time(NULL)) {
-        string command = "stat -c '%A %h %U %G %s %Y' '";
+        string command = "stat -c '%A %h %U %G %s %X %x %Y %y %Z %z' '";
         command.append(path_string);
         command.append("'");
         output = adb_shell(command, true);
@@ -553,15 +553,32 @@ static int adb_getattr(const char *path, struct stat *stbuf)
     // ftime.tm_isdst = -1;
     // time_t now = mktime(&ftime);
     //cout << "after mktime" << endl;
-    time_t now = (time_t) atol(output_chunk[iDate].c_str());
-    //long now = time(0);
+    // --- Access Time (X/x) ---
+    stbuf->st_atime = (time_t) atol(output_chunk[iDate].c_str());
+    if (output_chunk.size() > iDate + 2) {
+        size_t dot = output_chunk[iDate + 2].find('.');
+        if (dot != string::npos)
+            stbuf->st_atim.tv_nsec = atol(output_chunk[iDate + 2].substr(dot + 1, 9).c_str());
+    }
 
-    stbuf->st_atime = now;   /* time of last access */
-    //stbuf->st_atime = atol(output_chunk[11].c_str());   /* time of last access */
-    stbuf->st_mtime = now;   /* time of last modification */
-    //stbuf->st_mtime = atol(output_chunk[12].c_str());   /* time of last modification */
-    stbuf->st_ctime = now;   /* time of last status change */
-    //stbuf->st_ctime = atol(output_chunk[13].c_str());   /* time of last status change */
+    // --- Modify Time (Y/y) ---
+    // Offset is +4 from iDate: [Epoch(X) Date Time TZ]
+    stbuf->st_mtime = (time_t) atol(output_chunk[iDate + 4].c_str());
+    if (output_chunk.size() > iDate + 6) {
+        size_t dot = output_chunk[iDate + 6].find('.');
+        if (dot != string::npos)
+            stbuf->st_mtim.tv_nsec = atol(output_chunk[iDate + 6].substr(dot + 1, 9).c_str());
+    }
+
+    // --- Change Time (Z/z) ---
+    // Offset is +8 from iDate: [Epoch(X) Date Time TZ Epoch(Y) Date Time TZ]
+    stbuf->st_ctime = (time_t) atol(output_chunk[iDate + 8].c_str());
+    if (output_chunk.size() > iDate + 10) {
+        size_t dot = output_chunk[iDate + 10].find('.');
+        if (dot != string::npos)
+            stbuf->st_ctim.tv_nsec = atol(output_chunk[iDate + 10].substr(dot + 1, 9).c_str());
+    }
+
     return res;
 }
 
@@ -668,7 +685,7 @@ static int adb_open(const char *path, struct fuse_file_info *fi)
     cout << "-- adb_open --" << path_string << " " << local_path_string << "\n";
     if (!fileTruncated[path_string]){
         queue<string> output;
-        string command = "stat -c '%A %h %U %G %s %Y' '";
+        string command = "stat -c '%A %h %U %G %s %X %x %Y %y %Z %z' '";
         command.append(path_string);
         command.append("'");
         cout << command<<"\n";
@@ -871,7 +888,7 @@ static int adb_truncate(const char *path, off_t size) {
 
     queue<string> output;
     cout << "adb_truncate" << endl;
-    string command = "stat -c '%A %h %U %G %s %Y' '";
+    string command = "stat -c '%A %h %U %G %s %X %x %Y %y %Z %z' '";
     command.append(path_string);
     command.append("'");
     cout << command << "\n";
